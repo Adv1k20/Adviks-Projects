@@ -7,7 +7,7 @@ https://strydebd.netlify.app/
 
 ## 📌 About
 - Simple web app project
-- Built to practice frontend development
+- Built for Bussiness Development for cold outreach methods
 
 ## 🛠️ Tech Used
 - HTML
