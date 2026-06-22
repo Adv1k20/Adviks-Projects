@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stryde Research — National Clinical Intelligence Platform v4.5</title>
+<title>Stryde Research — National Clinical Intelligence Platform v5.0</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -222,7 +222,7 @@
 <body>
 
 <nav id="stryde-global-nav">
-  <div class="logo">STRYDE CORE v4.5</div>
+  <div class="logo">STRYDE CORE v5.0</div>
   <a href="#search-section" class="active">US Clinical Registry Matrix</a>
 </nav>
 
@@ -242,7 +242,7 @@
     <div class="grid-2">
       <div class="search-card">
         <div class="form-group">
-          <label>Geographic Parameters</label>
+          <label>Geographic Parameters (City Search)</label>
           <div class="geo-row">
             <input type="text" id="src-city" placeholder="City (e.g. Hartford, Stamford)">
             <select id="src-state">
@@ -299,7 +299,7 @@
 
         <div class="form-group">
           <label for="src-zip">Target Postal Zip Code</label>
-          <input type="text" id="src-zip" placeholder="Zip Code (e.g. 06103, 06901)">
+          <input type="text" id="src-zip" placeholder="5-Digit Zip Code (e.g. 06103, 06901)">
         </div>
         
         <div class="form-group">
@@ -332,7 +332,7 @@
         <div class="results-panel" id="search-results-output">
           <div class="status-message">
             [System Ready — Provide Target Regional Parameters to Stream Live Registries]<br>
-            <span style="font-size:11px; color:#999;">Tip: Enter "Hartford" or a zip code like "06103" and click Fetch to view metrics.</span>
+            <span style="font-size:11px; color:#999;">Testing Configuration: Type "06103" in Zip Code, clear the City field, and press Fetch.</span>
           </div>
         </div>
       </div>
@@ -357,8 +357,6 @@
   function generateDynamicResearchMetrics(provider) {
     const lastName = provider.basic?.last_name || "Physician";
     const npiNum = provider.number;
-    
-    // Deterministic metrics computed via unique NPI trailing signatures
     const scoreModifier = parseInt(npiNum.toString().slice(-2), 10) || 50;
     
     const operationalReadiness = Math.min(100, Math.max(62, Math.round(58 + (scoreModifier * 0.42))));
@@ -388,7 +386,7 @@
     };
   }
 
-  // BULLETPROOF SYSTEM MACRO QUERY PIPELINE
+  // SMART CONDITIONAL SANITIZER PIPELINE
   async function streamFederalNPIRegistry() {
     const outputPanel = document.getElementById('search-results-output');
     const cityInp = document.getElementById('src-city').value.trim();
@@ -398,41 +396,44 @@
 
     outputPanel.innerHTML = `<div class="status-message">[Request Handshake Initiated — Synchronizing Live Federal Registry Packages...]</div>`;
     
-    // Base URL mapping into clean endpoint records configuration
     let apiQueryUrl = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/npi-registry-clean/records?limit=100`;
-    
     let logicFilters = [];
     
-    // Isolate geographic criteria safely
+    // FAILSURGICAL CONDITION MATRIX: Zip code overrides city inputs to avoid system errors
     if (zipInp) {
-      logicFilters.push(`postal_code="${zipInp}"`);
-    } else if (cityInp) {
-      logicFilters.push(`provider_first_line_business_practice_location_address_city_name="${cityInp.toUpperCase()}"`);
+      logicFilters.push(`postal_code LIKE "${zipInp.slice(0, 5)}*"`);
+    } else {
+      if (cityInp) {
+        logicFilters.push(`provider_first_line_business_practice_location_address_city_name="${cityInp.toUpperCase()}"`);
+      }
+      if (stateInp) {
+        logicFilters.push(`provider_first_line_business_practice_location_address_state_name="${stateInp}"`);
+      }
     }
     
-    if (stateInp) {
-      logicFilters.push(`provider_first_line_business_practice_location_address_state_name="${stateInp}"`);
-    }
-    
-    // Fallback constraint to isolate real human individuals
+    // Always restrict queries to real living physicians
     logicFilters.push(`entity_type_code="1"`);
     
     if (logicFilters.length > 0) {
       apiQueryUrl += `&where=${encodeURIComponent(logicFilters.join(' AND '))}`;
     }
     
-    // Use macro full-text parameter 'q' to handle specialty match parameters reliably across remote datasets
     if (specialtySelected !== "ALL") {
       apiQueryUrl += `&q=${encodeURIComponent(specialtySelected)}`;
     }
 
     try {
       const response = await fetch(apiQueryUrl);
-      if (!response.ok) throw new Error("Query parameters mismatched or endpoint down.");
+      if (!response.ok) throw new Error("Query execution failure.");
       const payload = await response.json();
       
       if (!payload.results || payload.results.length === 0) {
-        outputPanel.innerHTML = `<div class="status-message">No active records found matching those precise filter parameters.<br><br><strong>Optimization Tip:</strong> If filtering by specialty yields no records, switch the specialty filter to <em>"All Physicians"</em> to harvest the general localized data matrix first.</div>`;
+        outputPanel.innerHTML = `
+          <div class="status-message">
+            No active records located for those parameters.<br><br>
+            <strong>Optimization Matrix Activated:</strong><br>
+            If you are looking up a town, clear out the <strong>Zip Code</strong> field to clear formatting conflicts, then use a primary commercial hub city name like <em>Hartford</em> or <em>Stamford</em>.
+          </div>`;
         return;
       }
       
@@ -446,9 +447,9 @@
           },
           addresses: [{
             address_1: record.provider_first_line_business_practice_location_address || "Clinical Facility",
-            city: record.provider_first_line_business_practice_location_address_city_name || cityInp || "Location",
-            state: record.provider_first_line_business_practice_location_address_state_name || stateInp,
-            postal_code: record.provider_first_line_business_practice_location_address_postal_code || zipInp,
+            city: record.provider_first_line_business_practice_location_address_city_name || "Location",
+            state: record.provider_first_line_business_practice_location_address_state_name || "CT",
+            postal_code: record.provider_first_line_business_practice_location_address_postal_code || "",
             telephone_number: record.provider_business_practice_location_address_telephone_number || "Contact via Registry"
           }],
           taxonomies: [{
@@ -462,12 +463,11 @@
     } catch (err) {
       outputPanel.innerHTML = `
         <div class="status-message" style="color:#333; text-align:left; background:#fff5f5; border:1px solid rgba(200,57,26,0.2); padding:16px; border-radius:6px;">
-          <strong style="color:var(--accent);">System Note: Connection Layer Readjusted</strong><br>
-          The remote registry encountered a query constraint. Try optimizing your parameters:<br><br>
+          <strong style="color:var(--accent);">System Note: Safe Query Adjustment Loop</strong><br>
+          An active request error occurred. Let's optimize your search constraints:<br><br>
           <ul>
-            <li>Search using a 5-digit <strong>Zip Code</strong> alone for the highest parsing speed.</li>
-            <li>If searching by City, confirm the spelling and verify the correct state is selected.</li>
-            <li>Set the Specialty drop-down to <em>"All Physicians"</em> to collect wide localized samples.</li>
+            <li>To perform a broad regional lookup, pass a 5-digit <strong>Zip Code</strong> alone with the City field completely empty.</li>
+            <li>Alternatively, query a physical <strong>City Name</strong> paired with its corresponding State selection bar.</li>
           </ul>
         </div>`;
     }
@@ -489,7 +489,7 @@
     });
 
     if (matches.length === 0) {
-      outputPanel.innerHTML = `<div class="status-message">No profiles computed an alignment rating inside <strong>${selectedDisplayTier}</strong> for this data batch.<br><br>Click the other tabs above to inspect alternative tier rankings!</div>`;
+      outputPanel.innerHTML = `<div class="status-message">No profiles computed an alignment rating inside <strong>${selectedDisplayTier}</strong> for this specific data pull.<br><br>Click the other tabs above to inspect alternative tier rankings!</div>`;
       return;
     }
 
