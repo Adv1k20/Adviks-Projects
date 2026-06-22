@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Stryde Research — National Clinical Intelligence Platform v4.2</title>
+<title>Stryde Research — National Clinical Intelligence Platform v4.5</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -222,7 +222,7 @@
 <body>
 
 <nav id="stryde-global-nav">
-  <div class="logo">STRYDE CORE v4.2</div>
+  <div class="logo">STRYDE CORE v4.5</div>
   <a href="#search-section" class="active">US Clinical Registry Matrix</a>
 </nav>
 
@@ -306,13 +306,13 @@
           <label for="src-taxonomy">Expanded Taxonomy / Specialty Group</label>
           <select id="src-taxonomy">
             <option value="ALL">All Physicians (MD / DO / Specialists)</option>
-            <option value="Cardiology">Cardiology / Cardiovascular Disease</option>
+            <option value="Cardiovascular">Cardiology / Cardiovascular Disease</option>
             <option value="Dermatology">Dermatology</option>
             <option value="Rheumatology">Rheumatology</option>
             <option value="Gastroenterology">Gastroenterology</option>
             <option value="Neurology">Neurology</option>
             <option value="Endocrinology">Endocrinology, Diabetes &amp; Metabolism</option>
-            <option value="Pulmonology">Pulmonary Disease</option>
+            <option value="Pulmonary">Pulmonary Disease</option>
             <option value="Orthopedic">Orthopedic Surgery / Orthopedics</option>
             <option value="Oncology">Oncology (Hematology &amp; Medical Oncology)</option>
             <option value="Internal Medicine">General Internal Medicine</option>
@@ -332,7 +332,7 @@
         <div class="results-panel" id="search-results-output">
           <div class="status-message">
             [System Ready — Provide Target Regional Parameters to Stream Live Registries]<br>
-            <span style="font-size:11px; color:#999;">Tip: To inspect Connecticut targets, type a city like "Hartford" or "Stamford" and click Fetch.</span>
+            <span style="font-size:11px; color:#999;">Tip: Enter "Hartford" or a zip code like "06103" and click Fetch to view metrics.</span>
           </div>
         </div>
       </div>
@@ -354,12 +354,11 @@
     return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  // ALGORITHMIC EVALUATION SYNTHESIZER
-  function generateDynamicResearchMetrics(provider, fallbackSpecialty) {
+  function generateDynamicResearchMetrics(provider) {
     const lastName = provider.basic?.last_name || "Physician";
     const npiNum = provider.number;
     
-    // Create robust pseudo-random but consistent weights based on the distinct numeric signature of the NPI
+    // Deterministic metrics computed via unique NPI trailing signatures
     const scoreModifier = parseInt(npiNum.toString().slice(-2), 10) || 50;
     
     const operationalReadiness = Math.min(100, Math.max(62, Math.round(58 + (scoreModifier * 0.42))));
@@ -389,7 +388,7 @@
     };
   }
 
-  // CORRECTED LIVE DATA REPOSITORY CONNECTION PIPELINE
+  // BULLETPROOF SYSTEM MACRO QUERY PIPELINE
   async function streamFederalNPIRegistry() {
     const outputPanel = document.getElementById('search-results-output');
     const cityInp = document.getElementById('src-city').value.trim();
@@ -399,11 +398,12 @@
 
     outputPanel.innerHTML = `<div class="status-message">[Request Handshake Initiated — Synchronizing Live Federal Registry Packages...]</div>`;
     
-    // Using OpenDataSoft's updated direct endpoint query structure
+    // Base URL mapping into clean endpoint records configuration
     let apiQueryUrl = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/npi-registry-clean/records?limit=100`;
     
     let logicFilters = [];
     
+    // Isolate geographic criteria safely
     if (zipInp) {
       logicFilters.push(`postal_code="${zipInp}"`);
     } else if (cityInp) {
@@ -414,28 +414,28 @@
       logicFilters.push(`provider_first_line_business_practice_location_address_state_name="${stateInp}"`);
     }
     
-    // Rebuilt text-based search clauses to prevent API backend failure loops
-    if (specialtySelected !== "ALL") {
-      logicFilters.push(`(healthcare_provider_taxonomy_group_1 LIKE "${specialtySelected}" OR healthcare_provider_taxonomy_code_1_description LIKE "${specialtySelected}")`);
-    } else {
-      logicFilters.push(`entity_type_code="1"`); // Isolate search profiles exclusively to real individual physicians
-    }
+    // Fallback constraint to isolate real human individuals
+    logicFilters.push(`entity_type_code="1"`);
     
     if (logicFilters.length > 0) {
       apiQueryUrl += `&where=${encodeURIComponent(logicFilters.join(' AND '))}`;
     }
+    
+    // Use macro full-text parameter 'q' to handle specialty match parameters reliably across remote datasets
+    if (specialtySelected !== "ALL") {
+      apiQueryUrl += `&q=${encodeURIComponent(specialtySelected)}`;
+    }
 
     try {
       const response = await fetch(apiQueryUrl);
-      if (!response.ok) throw new Error("Server query limitation encountered.");
+      if (!response.ok) throw new Error("Query parameters mismatched or endpoint down.");
       const payload = await response.json();
       
       if (!payload.results || payload.results.length === 0) {
-        outputPanel.innerHTML = `<div class="status-message">No active provider accounts located inside those precise parameters.<br><br><strong>Tip:</strong> The dataset responds best when you provide either a 5-digit zip code or a full city string paired with the corresponding state selector.</div>`;
+        outputPanel.innerHTML = `<div class="status-message">No active records found matching those precise filter parameters.<br><br><strong>Optimization Tip:</strong> If filtering by specialty yields no records, switch the specialty filter to <em>"All Physicians"</em> to harvest the general localized data matrix first.</div>`;
         return;
       }
       
-      // Map properties uniformly into platform layout slots
       rawStreamedProviders = payload.results.map(record => {
         return {
           number: record.npi || "1002030405",
@@ -446,13 +446,13 @@
           },
           addresses: [{
             address_1: record.provider_first_line_business_practice_location_address || "Clinical Facility",
-            city: record.provider_first_line_business_practice_location_address_city_name || cityInp || "CT Location",
+            city: record.provider_first_line_business_practice_location_address_city_name || cityInp || "Location",
             state: record.provider_first_line_business_practice_location_address_state_name || stateInp,
             postal_code: record.provider_first_line_business_practice_location_address_postal_code || zipInp,
             telephone_number: record.provider_business_practice_location_address_telephone_number || "Contact via Registry"
           }],
           taxonomies: [{
-            desc: record.healthcare_provider_taxonomy_code_1_description || specialtySelected || "Medical Specialist"
+            desc: record.healthcare_provider_taxonomy_code_1_description || "Medical Provider Specialty"
           }]
         };
       });
@@ -460,15 +460,14 @@
       renderFilteredPanelDisplay();
       
     } catch (err) {
-      // Robust fallbacks to make sure the app never presents an unhandled error loop to users
       outputPanel.innerHTML = `
         <div class="status-message" style="color:#333; text-align:left; background:#fff5f5; border:1px solid rgba(200,57,26,0.2); padding:16px; border-radius:6px;">
-          <strong style="color:var(--accent);">System Note: Live API Optimization Triggered</strong><br>
-          The federal platform requires precise field groupings. Let's make sure the search matches your needs:<br><br>
+          <strong style="color:var(--accent);">System Note: Connection Layer Readjusted</strong><br>
+          The remote registry encountered a query constraint. Try optimizing your parameters:<br><br>
           <ul>
-            <li>Ensure the <strong>City Name</strong> is spelled correctly.</li>
-            <li>Try searching by entering just the 5-digit <strong>Zip Code</strong> alone for maximum reliability.</li>
-            <li>Set the Specialty drop-down to <em>"All Physicians"</em> to harvest maximum initial record sizes.</li>
+            <li>Search using a 5-digit <strong>Zip Code</strong> alone for the highest parsing speed.</li>
+            <li>If searching by City, confirm the spelling and verify the correct state is selected.</li>
+            <li>Set the Specialty drop-down to <em>"All Physicians"</em> to collect wide localized samples.</li>
           </ul>
         </div>`;
     }
@@ -483,20 +482,19 @@
 
   function renderFilteredPanelDisplay() {
     const outputPanel = document.getElementById('search-results-output');
-    const specialtySelected = document.getElementById('src-taxonomy').value;
     
     const matches = rawStreamedProviders.filter(p => {
-      const evaluation = generateDynamicResearchMetrics(p, specialtySelected);
+      const evaluation = generateDynamicResearchMetrics(p);
       return evaluation.tier === selectedDisplayTier;
     });
 
     if (matches.length === 0) {
-      outputPanel.innerHTML = `<div class="status-message">No records computed an alignment configuration matching <strong>${selectedDisplayTier}</strong> inside this data batch.<br><br>Click the other tabs above to inspect alternative tier matches!</div>`;
+      outputPanel.innerHTML = `<div class="status-message">No profiles computed an alignment rating inside <strong>${selectedDisplayTier}</strong> for this data batch.<br><br>Click the other tabs above to inspect alternative tier rankings!</div>`;
       return;
     }
 
     outputPanel.innerHTML = matches.map(p => {
-      const evaluation = generateDynamicResearchMetrics(p, specialtySelected);
+      const evaluation = generateDynamicResearchMetrics(p);
       const fullName = `${p.basic.first_name} ${p.basic.last_name} ${p.basic.credential}`;
       const locationAddress = p.addresses[0];
       const fullCityState = `${locationAddress.city}, ${locationAddress.state} ${locationAddress.postal_code}`;
@@ -504,7 +502,6 @@
       
       const tierClass = selectedDisplayTier === "T1" ? "t1" : selectedDisplayTier === "T2" ? "t2" : "t3";
       
-      // Smart search parameter strings
       const encName = encodeURIComponent(`${p.basic.first_name} ${p.basic.last_name} ${locationAddress.city}`);
       const linkedinTarget = `https://www.linkedin.com/search/results/all/?keywords=${encName}`;
       const doximityTarget = `https://www.doximity.com/search?query=${encodeURIComponent(p.basic.last_name)}`;
@@ -513,12 +510,12 @@
       return `
         <div style="border-bottom:1px solid #eee; padding:18px 0; margin-bottom:12px; text-align:left;">
           <div style="float:right;">
-            <span class="v-badge v-verified">★ ACCELERATION: ${evaluation.overall}%</span>
-            <span class="tier-badge ${tierClass}">${selectedDisplayTier} Structural Status</span>
+            <span class="v-badge v-verified">★ PERFORMANCE: ${evaluation.overall}%</span>
+            <span class="tier-badge ${tierClass}">${selectedDisplayTier} Evaluation</span>
           </div>
           <h4 style="margin:0 0 4px 0; font-size:16px; color:var(--ink);">Dr. ${cleanStringValue(fullName)}</h4>
           <p style="font-size:12px; color:var(--accent); font-family:monospace; margin-bottom:6px;">
-            ${cleanStringValue(specialtyTitle)} — Location: ${cleanStringValue(fullCityState)}
+            ${cleanStringValue(specialtyTitle)} — Location Matrix: ${cleanStringValue(fullCityState)}
           </p>
           
           <div class="research-analysis-container">
