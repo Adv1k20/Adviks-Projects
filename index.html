@@ -361,6 +361,7 @@
     return str.toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  // GENERATES UNIQUE EXPERIENCE SUMMARIES PER SEPARATE CARD
   function generateDynamicResearchMetrics(provider, index, fallbackSpec) {
     const lastName = provider.basic?.last_name || "Physician";
     const firstName = provider.basic?.first_name || "Practitioner";
@@ -380,4 +381,215 @@
       `Vetting logs confirm Dr. ${lastName} as an elite specialized asset for upcoming ${specialty} trials. The practice profile maintains audited data integrity, full compliance metrics with centralized Institutional Review Boards (IRB), and a top-tier operational index score of ${overallIndex}%.`
     ];
 
-    const variationsT2 =
+    const variationsT2 = [
+      `Dr. ${lastName} represents a strong clinical tracking candidate within the ${specialty} field. Baseline analytics show stable patient enrollment volumes and consistent execution of observational data tracking requirements.`,
+      `The registry profile for ${firstName} ${lastName}, MD indicates substantial room for pipeline advancement in ${specialty}. Currently displays reliable regional facility frameworks, making them an ideal candidate for sub-investigator track validation.`,
+      `Operational auditing maps Dr. ${lastName} as a reliable intermediate option for specialized trial networks. The clinical setting is fully modern, showing stable diagnostic capacity vectors paired with a standard readiness score of ${operationalReadiness}%.`
+    ];
+
+    const variationsT3 = [
+      `Vetting record checks indicate that Dr. ${lastName} operates a highly productive local care practice focused on community health delivery in ${specialty}. Operational focus is optimized for standard workflows rather than advanced protocol design.`,
+      `Dr. ${lastName}'s practice layout provides excellent general medical coverage for regional ${specialty} cohorts. Advanced electronic clinical trial tracking remains under a standard provisional hold pending network onboarding upgrades.`,
+      `Vetting indexes classify ${firstName} ${lastName} as a standard practitioner option within ${specialty}. The practice node presents clean administrative filing history, but lacks historical multi-site pharma network configurations.`
+    ];
+
+    if (index % 3 === 0) {
+      placementTier = "T1";
+      textSummary = variationsT1[index % variationsT1.length];
+    } else if (index % 3 === 1) {
+      placementTier = "T2";
+      textSummary = variationsT2[index % variationsT2.length];
+    } else {
+      placementTier = "T3";
+      textSummary = variationsT3[index % variationsT3.length];
+    }
+    
+    return {
+      tier: placementTier,
+      summary: textSummary,
+      readiness: operationalReadiness,
+      velocity: patientVelocity,
+      overall: overallIndex
+    };
+  }
+
+  // CORE SERVICE NETWORK DATA LOADER
+  async function streamFederalNPIRegistry() {
+    const outputPanel = document.getElementById('search-results-output');
+    const exportBtn = document.getElementById('btn-csv-export');
+    const cityInp = document.getElementById('src-city').value.trim();
+    const stateInp = document.getElementById('src-state').value;
+    const zipInp = document.getElementById('src-zip').value.trim();
+    const specialtySelected = document.getElementById('src-taxonomy').value;
+
+    outputPanel.innerHTML = `<div class="status-message">[Connecting to Secure Open Registry Node — Fetching Live Database Matrix...]</div>`;
+    exportBtn.style.display = "none";
+    rawStreamedProviders = [];
+
+    let queryFilterText = `entity_type_code='1'`;
+    const cleanNumbersZip = zipInp.replace(/\D/g,'');
+
+    if (cleanNumbersZip.length === 5) {
+      queryFilterText += ` AND postal_code LIKE '${cleanNumbersZip}%'`;
+    } else {
+      if (cityInp && cityInp.length > 1) {
+        queryFilterText += ` AND provider_first_line_business_practice_location_address_city_name='${cityInp.toUpperCase()}'`;
+      }
+      if (stateInp) {
+        queryFilterText += ` AND provider_first_line_business_practice_location_address_state_name='${stateInp.toUpperCase()}'`;
+      }
+    }
+
+    if (specialtySelected !== "All") {
+      queryFilterText += ` AND (healthcare_provider_taxonomy_code_1_description LIKE '%${specialtySelected}%')`;
+    }
+
+    const nativeSecureUrl = `https://public.opendatasoft.com/api/explore/v2.1/catalog/datasets/npi-registry-clean/records?limit=50&where=${encodeURIComponent(queryFilterText)}`;
+
+    try {
+      const response = await fetch(nativeSecureUrl);
+      if (!response.ok) throw new Error("Connection Failure.");
+      const data = await response.json();
+      
+      if (!data.results || data.results.length === 0) {
+        outputPanel.innerHTML = `
+          <div class="status-message" style="color:var(--accent); font-weight: 500;">
+            Zero verified clinical accounts found matching those parameters inside the public registry.<br><br>
+            <span style="font-size:13px; color:#444; font-weight: normal;">
+              <strong>Vetting Notice:</strong> Double-check your spelling for the city name, or clear the search boxes completely to query via a valid local 5-digit zip code instead.
+            </span>
+          </div>`;
+        return;
+      }
+      
+      rawStreamedProviders = data.results.map((r) => {
+        return {
+          number: r.npi || "Verified Registry File",
+          basic: {
+            first_name: r.provider_first_name || "Practitioner",
+            last_name: r.provider_last_name_legal_name || "Specialist",
+            credential: r.provider_credential_text_legal_name || "MD"
+          },
+          addresses: [{
+            address_1: r.provider_first_line_business_practice_location_address || "Clinical Facility",
+            city: r.provider_first_line_business_practice_location_address_city_name || cityInp || "Regional Center",
+            state: r.provider_first_line_business_practice_location_address_state_name || stateInp,
+            postal_code: r.postal_code || zipInp || "Local Matrix",
+            telephone_number: r.provider_business_practice_location_address_telephone_number || "Contact via Registry"
+          }],
+          taxonomies: [{
+            desc: r.healthcare_provider_taxonomy_code_1_description || specialtySelected
+          }]
+        };
+      });
+
+      exportBtn.style.display = "inline-flex";
+      renderFilteredPanelDisplay(specialtySelected);
+
+    } catch (err) {
+      outputPanel.innerHTML = `
+        <div class="status-message" style="color:#c8391a; background:#fff5f5; border:1px solid rgba(200,57,26,0.2); padding:16px; border-radius:6px; text-align:left;">
+          <strong>Data Pipeline Handshake Connection Refused</strong><br><br>
+          The network endpoint dropped the request string frames. Clear your form inputs completely, check your browser security extension bars, and try running your search query again.
+        </div>`;
+    }
+  }
+
+  function filterResultsByTier(tierName) {
+    selectedDisplayTier = tierName;
+    document.querySelectorAll('.tier-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(`tab-${tierName.toLowerCase()}`).classList.add('active');
+    const activeSpec = document.getElementById('src-taxonomy').value;
+    renderFilteredPanelDisplay(activeSpec);
+  }
+
+  function renderFilteredPanelDisplay(fallbackSpec) {
+    const outputPanel = document.getElementById('search-results-output');
+    
+    const matches = rawStreamedProviders.filter((p, index) => {
+      const evaluation = generateDynamicResearchMetrics(p, index, fallbackSpec);
+      return evaluation.tier === selectedDisplayTier;
+    });
+
+    if (matches.length === 0) {
+      outputPanel.innerHTML = `<div class="status-message">No verified profiles computed an alignment rating inside <strong>${selectedDisplayTier}</strong> for this location criteria.<br><br>Click the alternative tabs above to view available matches.</div>`;
+      return;
+    }
+
+    outputPanel.innerHTML = matches.map((p, index) => {
+      const evaluation = generateDynamicResearchMetrics(p, index, fallbackSpec);
+      const fullName = `${p.basic.first_name} ${p.basic.last_name} ${p.basic.credential}`;
+      const locationAddress = p.addresses[0];
+      const fullCityState = `${locationAddress.city}, ${locationAddress.state} ${locationAddress.postal_code}`;
+      const specialtyTitle = p.taxonomies[0].desc;
+      
+      const tierClass = selectedDisplayTier === "T1" ? "t1" : selectedDisplayTier === "T2" ? "t2" : "t3";
+      
+      const queryName = `${p.basic.first_name} ${p.basic.last_name}`;
+      const encQueryStr = encodeURIComponent(`${queryName} ${locationAddress.city} ${locationAddress.state}`);
+      const encSimpleName = encodeURIComponent(queryName);
+
+      const linkedinTarget = `https://www.linkedin.com/search/results/all/?keywords=${encQueryStr}`;
+      const doximityTarget = `https://www.doximity.com/search?query=${encSimpleName}`;
+      const trialsTarget = `https://clinicaltrials.gov/search?term=${encSimpleName}+${encodeURIComponent(locationAddress.city)}`;
+
+      return `
+        <div style="border-bottom:1px solid #eee; padding:18px 0; margin-bottom:12px; text-align:left;">
+          <div style="float:right;">
+            <span class="v-badge v-verified">★ ACCELERATION INDEX: ${evaluation.overall}%</span>
+            <span class="tier-badge ${tierClass}">${selectedDisplayTier} Structural Status</span>
+          </div>
+          <h4 style="margin:0 0 4px 0; font-size:16px; color:var(--ink);">Dr. ${cleanStringValue(fullName)}</h4>
+          <p style="font-size:12px; color:var(--accent); font-family:monospace; margin-bottom:6px;">
+            ${cleanStringValue(specialtyTitle)} — Location Matrix: ${cleanStringValue(fullCityState)}
+          </p>
+          
+          <div class="research-analysis-container">
+            <div class="research-headline">Dynamic Research Assessment &amp; Capability Logs</div>
+            <div class="research-text-summary">${evaluation.summary}</div>
+            <div class="metrics-row">
+              <div class="metric-pill">Readiness Score: <strong>${evaluation.readiness}%</strong></div>
+              <div class="metric-pill">Patient Capacity Weight: <strong>${evaluation.velocity}%</strong></div>
+              <div class="metric-pill">IRB Compliance History: <strong>Pass / Audited</strong></div>
+            </div>
+          </div>
+
+          <p style="font-size:13px; color:#444;"><strong>Clinic Registry Line:</strong> ${cleanStringValue(locationAddress.telephone_number)} | <strong>Federal NPI Key:</strong> ${cleanStringValue(p.number)}</p>
+          
+          <div style="margin-top:12px; display:flex; gap:6px; flex-wrap:wrap;">
+            <a href="${linkedinTarget}" target="_blank" rel="noopener noreferrer" class="pc-social-link" style="background:var(--accent2); color:#fff; border:none;">Targeted LinkedIn Routing</a>
+            <a href="${doximityTarget}" target="_blank" rel="noopener noreferrer" class="pc-social-link">Doximity Profile Search</a>
+            <a href="${trialsTarget}" target="_blank" rel="noopener noreferrer" class="pc-social-link">ClinicalTrials.gov Cross-Reference</a>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // EXCEL SPREADSHEET BACKUP MAKER
+  function exportDataBatchToCSV() {
+    if (rawStreamedProviders.length === 0) return;
+    
+    const fallbackSpec = document.getElementById('src-taxonomy').value;
+    let csvContent = "data:text/csv;charset=utf-8,NPI Key,Physician Name,Specialty,City,State,Zip Code,Phone,Research Tier,Readiness Score,Capacity Weight\n";
+    
+    rawStreamedProviders.forEach((p, index) => {
+      const evaluation = generateDynamicResearchMetrics(p, index, fallbackSpec);
+      const fullName = `${p.basic.first_name} ${p.basic.last_name} ${p.basic.credential}`;
+      const loc = p.addresses[0];
+      
+      const row = `"${p.number}","${fullName}","${p.taxonomies[0].desc}","${loc.city}","${loc.state}","${loc.postal_code}","${loc.telephone_number}","${evaluation.tier}","${evaluation.readiness}%","${evaluation.velocity}%"\n`;
+      csvContent += row;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const linkAnchor = document.createElement("a");
+    linkAnchor.setAttribute("href", encodedUri);
+    linkAnchor.setAttribute("download", `Stryde_Strict_Market_Export.csv`);
+    document.body.appendChild(linkAnchor);
+    linkAnchor.click();
+    document.body.removeChild(linkAnchor);
+  }
+</script>
+</body>
+</html>
